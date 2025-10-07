@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Thanh toán học phí</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f9f9f9; margin: 30px; }
+        .container { max-width: 500px; margin: auto; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        label { display: block; font-weight: bold; margin-top: 12px; }
+        input { width: 100%; padding: 8px; margin-top: 5px; border-radius: 6px; border: 1px solid #ccc; }
+        button { margin-top: 15px; padding: 10px 15px; background: #007bff; border: none; color: white; border-radius: 6px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .message { margin-top: 8px; font-size: 14px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>Thanh toán học phí</h2>
+
+    <form th:action="@{/payment/save}" method="post" th:object="${payment}">
+        <label>MSSV:</label>
+        <input type="text" id="mssv" th:field="*{mssv}" placeholder="Nhập MSSV" required>
+
+        <label>Họ tên:</label>
+        <input type="text" id="fullname" readonly>
+
+        <label>Số tiền cần nộp (VNĐ):</label>
+        <input type="text" id="amount" th:field="*{amount}" readonly>
+
+        <label>Người nộp tiền:</label>
+        <input type="text" th:value="${currentUser}" th:field="*{payerUsername}" readonly>
+
+        <div id="message" class="message"></div>
+
+        <button type="submit">Xác nhận thanh toán</button>
+    </form>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const mssvInput = document.getElementById("mssv");
+    const fullname = document.getElementById("fullname");
+    const amount = document.getElementById("amount");
+    const message = document.getElementById("message");
+
+    let timeout = null;
+
+    mssvInput.addEventListener("input", function() {
+        clearTimeout(timeout);
+        const mssv = this.value.trim();
+        if (mssv.length >= 5) {
+            timeout = setTimeout(() => {
+                fetch(`/api/payments/check/${mssv}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.found) {
+                            fullname.value = data.fullname || "";
+                            amount.value = data.amount || "";
+                            if (data.paid) {
+                                message.textContent = "⚠️ Sinh viên này đã nộp học phí!";
+                                message.style.color = "orange";
+                            } else {
+                                message.textContent = "";
+                            }
+                        } else {
+                            fullname.value = "";
+                            amount.value = "";
+                            message.textContent = "❌ Không tìm thấy MSSV!";
+                            message.style.color = "red";
+                        }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        message.textContent = "Lỗi khi kiểm tra MSSV!";
+                    });
+            }, 500);
+        }
+    });
+});
+</script>
+</body>
+</html>
