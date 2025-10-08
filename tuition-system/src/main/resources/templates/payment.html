@@ -10,6 +10,7 @@
         input { width: 100%; padding: 8px; margin-top: 5px; border-radius: 6px; border: 1px solid #ccc; }
         button { margin-top: 15px; padding: 10px 15px; background: #007bff; border: none; color: white; border-radius: 6px; cursor: pointer; }
         button:hover { background: #0056b3; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
         .message { margin-top: 8px; font-size: 14px; }
     </style>
 </head>
@@ -27,12 +28,22 @@
         <label>Số tiền cần nộp (VNĐ):</label>
         <input type="text" id="amount" th:field="*{amount}" readonly>
 
+        <!-- ========== MỞ RỘNG: hiện số dư khả dụng lấy từ model ========== -->
+        <label>Số dư khả dụng (VNĐ):</label>
+        <input type="text" id="availableBalance" th:field="*{availableBalance}" readonly>
+
         <label>Người nộp tiền:</label>
         <input type="text" th:value="${currentUser}" th:field="*{payerUsername}" readonly>
 
         <div id="message" class="message"></div>
 
-        <button type="submit">Xác nhận thanh toán</button>
+        <label>
+    <input type="checkbox" id="termsCheckbox" name="termsAccepted" required>
+            Tôi đồng ý với 
+            <a href="#" onclick="openTerms(); return false;">các điều khoản và điều kiện</a>.
+        </label>
+
+        <button type="submit" id="confirmBtn" disabled>Xác nhận thanh toán</button>
     </form>
 </div>
 
@@ -41,41 +52,106 @@ document.addEventListener("DOMContentLoaded", () => {
     const mssvInput = document.getElementById("mssv");
     const fullname = document.getElementById("fullname");
     const amount = document.getElementById("amount");
+    const availableBalance = document.getElementById("availableBalance");
     const message = document.getElementById("message");
+    const confirmBtn = document.getElementById("confirmBtn");
+
+    // disable submit by default until validation passes
+    confirmBtn.disabled = true;
 
     let timeout = null;
+
+    function parseNumberSafe(val) {
+        if (val === null || val === undefined || val === "") return 0;
+        // remove commas and spaces
+        const s = String(val).replace(/[, ]+/g, '');
+        const n = parseFloat(s);
+        return isNaN(n) ? 0 : n;
+    }
+
+    function validateAndUpdate() {
+        const bal = parseNumberSafe(availableBalance.value);
+        const tuition = parseNumberSafe(amount.value);
+
+        // if no tuition amount yet, keep disabled
+        if (tuition <= 0) {
+            confirmBtn.disabled = true;
+            if (message.textContent === "") {
+                message.textContent = "";
+            }
+            return;
+        }
+
+        // student already paid check is done in fetch (message set to warning)
+        if (message.textContent && message.textContent.includes('đã nộp')) {
+            confirmBtn.disabled = true;
+            return;
+        }
+
+        if (bal < tuition) {
+            message.textContent = "❌ Số dư khả dụng không đủ để thanh toán (cần: " + tuition + " VND).";
+            message.style.color = "red";
+            confirmBtn.disabled = true;
+        } else {
+            // all good
+            message.textContent = "";
+            confirmBtn.disabled = false;
+        }
+    }
 
     mssvInput.addEventListener("input", function() {
         clearTimeout(timeout);
         const mssv = this.value.trim();
-        if (mssv.length >= 5) {
+        // only trigger when MSSV looks long enough
+        if (mssv.length >= 3) {
             timeout = setTimeout(() => {
-                fetch(`/api/payments/check/${mssv}`)
-                    .then(res => res.json())
+                fetch(`/api/payments/check/${encodeURIComponent(mssv)}`)
+                    .then(res => {
+                        if (!res.ok) throw new Error('Network response was not ok');
+                        return res.json();
+                    })
                     .then(data => {
                         if (data.found) {
                             fullname.value = data.fullname || "";
-                            amount.value = data.amount || "";
+                            amount.value = data.amount != null ? data.amount : "";
+                            // server side returns whether this student already paid
                             if (data.paid) {
                                 message.textContent = "⚠️ Sinh viên này đã nộp học phí!";
                                 message.style.color = "orange";
+                                confirmBtn.disabled = true;
                             } else {
+                                // clear student-paid message
                                 message.textContent = "";
+                                // re-validate with available balance
+                                validateAndUpdate();
                             }
                         } else {
                             fullname.value = "";
                             amount.value = "";
                             message.textContent = "❌ Không tìm thấy MSSV!";
                             message.style.color = "red";
+                            confirmBtn.disabled = true;
                         }
                     })
                     .catch(err => {
                         console.error(err);
                         message.textContent = "Lỗi khi kiểm tra MSSV!";
+                        message.style.color = "red";
+                        confirmBtn.disabled = true;
                     });
             }, 500);
+        } else {
+            // reset when mssv too short
+            fullname.value = "";
+            amount.value = "";
+            message.textContent = "";
+            confirmBtn.disabled = true;
         }
     });
+
+    // If availableBalance input is present from server (set by controller),
+    // run validation once on load (in case MSSV prefilled or balance was updated)
+    validateAndUpdate();
 });
 </script>
 </body>

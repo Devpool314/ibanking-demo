@@ -21,17 +21,22 @@ public class CustomUserDetailsService implements UserDetailsService {
         User u = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("Không tìm thấy người dùng: " + username));
 
-                System.out.println(">>> [DEBUG] Found user: " + u.getUsername());
-                System.out.println(">>> [DEBUG] Role: " + u.getRole());
-                System.out.println(">>> [DEBUG] Password hash: " + u.getPassword());
-                // ⚙️ KHÔNG thêm ROLE_ nữa vì DB đã có sẵn
-                List<GrantedAuthority> authorities = List.of(
-                        new SimpleGrantedAuthority(u.getRole().toUpperCase())
-                );
+        // Debug thông tin người dùng
+        System.out.println(">>> [DEBUG] Found user: " + u.getUsername());
+        System.out.println(">>> [DEBUG] Role from DB: " + u.getRole());
+        System.out.println(">>> [DEBUG] Password hash: " + u.getPassword());
+
+        // Đảm bảo role có tiền tố ROLE_ (Spring Security yêu cầu)
+        String roleName = u.getRole();
+        if (!roleName.startsWith("ROLE_")) {
+            roleName = "ROLE_" + roleName.toUpperCase();
+        }
+
+        List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(roleName));
 
         return org.springframework.security.core.userdetails.User.builder()
                 .username(u.getUsername())
-                .password(u.getPassword())  // BCrypt hash
+                .password(u.getPassword()) // BCrypt hash
                 .authorities(authorities)
                 .build();
     }

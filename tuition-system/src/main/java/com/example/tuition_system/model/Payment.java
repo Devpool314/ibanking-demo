@@ -8,9 +8,15 @@ public class Payment {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
     private String mssv;
     private double amount;
+
+    private double availableBalance;
+    private double tuitionFee;
+    private boolean termsAccepted = false;
+    private boolean paid;
+    private String status;
+
     private LocalDateTime paymentDate;
     
     
@@ -43,6 +49,21 @@ public class Payment {
 
     public double getAmount() { return amount; }
     public void setAmount(double amount) { this.amount = amount; }
+
+    public double getAvailableBalance() { return availableBalance; }
+    public void setAvailableBalance(double availableBalance) { this.availableBalance = availableBalance; }
+
+    public double getTuitionFee() { return tuitionFee; }
+    public void setTuitionFee(double tuitionFee) { this.tuitionFee = tuitionFee; }
+
+    public boolean isTermsAccepted() { return termsAccepted; }
+    public void setTermsAccepted(boolean termsAccepted) { this.termsAccepted = termsAccepted; }
+
+    public boolean isPaid() { return paid; }
+    public void setPaid(boolean paid) { this.paid = paid; }
+
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
 
     public LocalDateTime getPaymentDate() { return paymentDate; }
     public void setPaymentDate(LocalDateTime paymentDate) { this.paymentDate = paymentDate; }
