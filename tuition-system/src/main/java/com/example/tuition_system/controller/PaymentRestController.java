@@ -40,7 +40,7 @@ public class PaymentRestController {
 
             // Xử lý lưu thanh toán//
         
-        Payment savedPayment = service.process(p);
+        //Payment savedPayment = service.process(p);
 
         Optional<TuitionInfo> infoOpt = tuitionInfoRepository.findByMssv(mssv);
         if (infoOpt.isPresent()) {
