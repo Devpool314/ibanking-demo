@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Đăng nhập hệ thống học phí</title>
+    <style>
+        body { background: #f2f4f7; font-family: "Segoe UI", sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; }
+        .login-container { background: #fff; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 380px; }
+        h2 { text-align: center; color: #333; margin-bottom: 1.5rem; }
+        .form-group { margin-bottom: 1rem; }
+        label { display: block; font-weight: 600; color: #555; margin-bottom: 0.5rem; }
+        input { width: 100%; padding: 0.6rem; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; box-sizing: border-box; }
+        button { width: 100%; padding: 0.8rem; border: none; border-radius: 8px; background-color: #007bff; color: #fff; font-size: 1rem; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+        .message { text-align: center; margin-top: 1rem; }
+        .error { color: #d9534f; }
+    </style>
+</head>
+<body>
+<div class="login-container">
+    <h2>Đăng nhập</h2>
+
+    <div id="message" class="message error"></div>
+    
+    <div class="form-group">
+        <label for="username">Tên đăng nhập</label>
+        <input type="text" id="username" name="username" required>
+    </div>
+    <div class="form-group">
+        <label for="password">Mật khẩu</label>
+        <input type="password" id="password" name="password" required>
+    </div>
+    <button id="loginButton">Đăng nhập</button>
+
+</div>
+
+<script>
+    // Thêm JavaScript vào cuối file
+    document.getElementById('loginButton').addEventListener('click', async () => {
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+        const messageDiv = document.getElementById('message');
+        
+        messageDiv.innerText = 'Đang đăng nhập...';
+
+        try {
+            // 1. Gọi API /api/auth/login (giống hệt Postman)
+            const response = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    username: username,
+                    password: password
+                })
+            });
+
+            if (response.ok) {
+                // 2. Nếu thành công (200 OK)
+                const data = await response.json();
+                
+                // 3. LƯU TOKEN VÀO BỘ NHỚ TRÌNH DUYỆT
+                localStorage.setItem('jwtToken', data.token);
+                
+                messageDiv.innerText = 'Đăng nhập thành công! Đang chuyển hướng...';
+                
+                // 4. Chuyển hướng đến trang danh sách
+                window.location.href = '/web/payments'; 
+                
+            } else {
+                // 5. Nếu thất bại (401 Unauthorized)
+                const errorData = await response.json();
+                messageDiv.innerText = errorData.message || 'Tên đăng nhập hoặc mật khẩu không chính xác.';
+            }
+        } catch (error) {
+            console.error('Lỗi:', error);
+            messageDiv.innerText = 'Không thể kết nối tới máy chủ.';
+        }
+    });
+</script>
+
+</body>
+</html>

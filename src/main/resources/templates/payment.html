@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Thanh toán học phí</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f9f9f9; margin: 30px; }
+        .container { max-width: 500px; margin: auto; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        label { display: block; font-weight: bold; margin-top: 12px; }
+        input { width: 100%; padding: 8px; margin-top: 5px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box; }
+        button { margin-top: 15px; padding: 10px 15px; background: #007bff; border: none; color: white; border-radius: 6px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .message { margin-top: 8px; font-size: 14px; }
+        .error-msg { color: red; }
+        .warn-msg { color: orange; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>Thanh toán học phí</h2>
+
+    <form id="paymentForm">
+        <label>MSSV:</label>
+        <input type="text" id="mssv" placeholder="Nhập MSSV" required>
+
+        <label>Họ tên:</label>
+        <input type="text" id="fullname" readonly>
+        <label>Số tiền cần nộp (VNĐ):</label>
+        <input type="number" id="amount" step="1000" readonly>
+
+        <div id="message" class="message"></div>
+
+        <label>
+          <input type="checkbox" id="termsCheckbox" required>
+          Tôi đồng ý với các điều khoản và điều kiện.
+        </label>
+
+        <button type="submit" id="confirmBtn" disabled>Xác nhận thanh toán</button>
+    </form>
+    <a href="/web/payments" style="display: block; margin-top: 15px;">← Quay lại danh sách</a>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    // 1. LẤY TOKEN (BẮT BUỘC)
+    const token = localStorage.getItem('jwtToken');
+    if (!token) {
+        alert('Bạn chưa đăng nhập!');
+        window.location.href = '/web/login';
+        return;
+    }
+
+    const mssvInput = document.getElementById("mssv");
+    const fullname = document.getElementById("fullname");
+    const amount = document.getElementById("amount");
+    const message = document.getElementById("message");
+    const confirmBtn = document.getElementById("confirmBtn");
+    const paymentForm = document.getElementById("paymentForm");
+    const termsCheckbox = document.getElementById("termsCheckbox");
+
+    let timeout = null;
+
+    function validateForm() {
+        const mssvValid = mssvInput.value.trim().length >= 3;
+        const amountValid = parseFloat(amount.value) > 0;
+        const termsChecked = termsCheckbox.checked;
+        const noError = !message.classList.contains('error-msg') && !message.classList.contains('warn-msg');
+
+        confirmBtn.disabled = !(mssvValid && amountValid && termsChecked && noError);
+    }
+    
+    termsCheckbox.addEventListener('change', validateForm);
+
+    // 2. CẬP NHẬT LẠI HÀM FETCH CHECK MSSV
+    mssvInput.addEventListener("input", function() {
+        clearTimeout(timeout);
+        const mssv = this.value.trim();
+        confirmBtn.disabled = true; // Luôn vô hiệu hóa khi đang gõ
+        
+        if (mssv.length >= 3) {
+            timeout = setTimeout(() => {
+                // SỬA LẠI: Gọi API /api/tuition/{mssv} mới
+                fetch(`/api/tuition/${encodeURIComponent(mssv)}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}` // <-- GỬI TOKEN
+                    }
+                })
+                .then(res => {
+                    if (res.status === 404) {
+                        message.textContent = "❌ Không tìm thấy thông tin học phí cho MSSV này!";
+                        message.className = 'message error-msg';
+                        fullname.value = ""; 
+                        amount.value = "";
+                        validateForm();
+                        return null; // Dừng promise
+                    }
+                    if (!res.ok) throw new Error('Lỗi máy chủ');
+                    return res.json();
+                })
+                .then(data => {
+                    if (data) {
+                        // Dữ liệu bây giờ là từ 'TuitionInfo'
+                        fullname.value = data.fullname || ""; // Lấy 'fullname' từ tuition_info
+                        amount.value = data.amount != null ? data.amount : ""; // Lấy 'amount' từ tuition_info
+                        
+                        // SỬA LẠI: Dùng trường 'paid'
+                        if (data.paid) { // 'paid' là boolean (true/false)
+                             message.textContent = "⚠️ Sinh viên này đã nộp học phí hoặc không có nợ!";
+                             message.className = 'message warn-msg';
+                        } else if (data.amount <= 0) {
+                             message.textContent = "⚠️ Sinh viên này không có nợ.";
+                             message.className = 'message warn-msg';
+                        } else {
+                            message.textContent = "✅ Đã tìm thấy sinh viên.";
+                            message.className = 'message';
+                        }
+                        validateForm();
+                    }
+                })
+                .catch(err => { 
+                    console.error(err); 
+                    message.textContent = "Lỗi khi kiểm tra học phí!"; 
+                    message.className = 'message error-msg';
+                    validateForm();
+                });
+            }, 500);
+        } else { 
+            fullname.value = ""; 
+            amount.value = ""; 
+            message.textContent = "";
+            message.className = 'message';
+            validateForm();
+        }
+    });
+
+    // 3. XỬ LÝ SUBMIT FORM BẰNG JAVASCRIPT
+    paymentForm.addEventListener('submit', async (e) => {
+        e.preventDefault(); // Ngăn form tự submit
+        confirmBtn.disabled = true;
+        confirmBtn.innerText = 'Đang xử lý...';
+
+        const paymentData = {
+            mssv: mssvInput.value,
+            amount: parseFloat(amount.value),
+            termsAccepted: termsCheckbox.checked
+        };
+
+        try {
+            const response = await fetch('/api/payment/request', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` // <-- GỬI TOKEN
+                },
+                body: JSON.stringify(paymentData)
+            });
+
+            const result = await response.json(); // Luôn đọc JSON
+
+            if (response.ok) {
+                // { "message": "...", "data": 123 }
+                const transactionId = result.data;
+                // Chuyển sang trang OTP với transactionId
+                window.location.href = `/web/verify?transactionId=${transactionId}`;
+            } else {
+                // { "message": "Số dư không đủ..." }
+                message.textContent = `❌ Lỗi: ${result.message}`;
+                message.className = 'message error-msg';
+                confirmBtn.disabled = false;
+                confirmBtn.innerText = 'Xác nhận thanh toán';
+            }
+        } catch (error) {
+            console.error('Lỗi submit:', error);
+            message.textContent = 'Lỗi kết nối máy chủ khi tạo thanh toán.';
+            message.className = 'message error-msg';
+            confirmBtn.disabled = false;
+            confirmBtn.innerText = 'Xác nhận thanh toán';
+        }
+    });
+
+    validateForm(); // Chạy lần đầu
+});
+</script>
+</body>
+</html>

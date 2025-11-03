@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>Xác nhận OTP</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#f7f7f7; margin:40px; }
+    .card { max-width:420px; margin:auto; background:#fff; padding:24px; border-radius:10px; box-shadow:0 4px 12px rgba(0,0,0,.08); }
+    h3 { margin-top:0; }
+    .row { margin:14px 0; }
+    input[type="text"] { width:100%; padding:10px; border:1px solid #ccc; border-radius:6px; box-sizing: border-box; }
+    button { padding:10px 16px; background:#007bff; color:#fff; border:none; border-radius:6px; cursor:pointer; }
+    button:hover { background:#0062cc; }
+    .msg { margin-bottom:10px; padding:10px; border-radius:6px; font-size:14px; }
+    .msg.err { background:#ffe9e9; color:#a30000; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h3>Xác nhận OTP</h3>
+
+  <div id="message" class="msg err" style="display:none;"></div>
+
+  <form id="otpForm">
+    <input type="hidden" id="transactionId" />
+    
+    <div class="row">
+      <input type="text" id="otp" name="otp" maxlength="6" placeholder="Nhập OTP 6 số" required autofocus />
+    </div>
+    <button type="submit" id="verifyButton">Xác nhận</button>
+  </form>
+
+  <p style="margin-top:14px;"><a href="/web/pay">← Quay lại form</a></p>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. LẤY TOKEN (BẮT BUỘC)
+    const token = localStorage.getItem('jwtToken');
+    if (!token) {
+        alert('Bạn chưa đăng nhập!');
+        window.location.href = '/web/login';
+        return;
+    }
+
+    const otpForm = document.getElementById('otpForm');
+    const otpInput = document.getElementById('otp');
+    const transactionIdInput = document.getElementById('transactionId');
+    const messageDiv = document.getElementById('message');
+    const verifyButton = document.getElementById('verifyButton');
+
+    // 2. LẤY TRANSACTION ID TỪ URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const transactionId = urlParams.get('transactionId');
+
+    if (!transactionId) {
+        alert('Không tìm thấy mã giao dịch!');
+        window.location.href = '/web/pay';
+        return;
+    }
+    
+    transactionIdInput.value = transactionId; // Lưu vào input (dù ẩn)
+
+    // 3. XỬ LÝ SUBMIT OTP
+    otpForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        verifyButton.disabled = true;
+        verifyButton.innerText = 'Đang kiểm tra...';
+
+        const verifyData = {
+            transactionId: parseInt(transactionId),
+            otp: otpInput.value
+        };
+
+        try {
+            const response = await fetch('/api/payment/verify', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` // <-- GỬI TOKEN
+                },
+                body: JSON.stringify(verifyData)
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                // Thanh toán thành công!
+                // Chuyển về trang danh sách với thông báo thành công
+                window.location.href = '/web/payments?success=true';
+            } else {
+                // Lỗi (OTP sai, hết hạn, v.v.)
+                messageDiv.innerText = `Lỗi: ${result.message}`;
+                messageDiv.style.display = 'block';
+                verifyButton.disabled = false;
+                verifyButton.innerText = 'Xác nhận';
+            }
+        } catch (error) {
+            console.error('Lỗi:', error);
+            messageDiv.innerText = 'Lỗi kết nối máy chủ.';
+            messageDiv.style.display = 'block';
+            verifyButton.disabled = false;
+            verifyButton.innerText = 'Xác nhận';
+        }
+    });
+});
+</script>
+
+</body>
+</html>

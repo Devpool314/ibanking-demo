@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Danh sách thanh toán</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background: #f9f9f9; }
+        h2 { text-align: center; }
+        table { width: 90%; margin: auto; border-collapse: collapse; background: white; }
+        th, td { padding: 10px; border: 1px solid #ddd; text-align: center; }
+        th { background: #007bff; color: white; }
+        tr:nth-child(even) { background: #f2f2f2; }
+        a.btn { padding: 5px 10px; border-radius: 5px; color: white; text-decoration: none; }
+        .btn-success { background: #28a745; }
+        .btn-logout { background: #dc3545; }
+        .message { text-align: center; color: green; font-weight: bold; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+<h2>Danh sách thanh toán</h2>
+
+<div id="message" class="message"></div>
+
+<table>
+    <thead>
+    <tr>
+        <th>ID</th>
+        <th>MSSV</th>
+        <th>Số tiền (VND)</th>
+        <th>Ngày thanh toán</th>
+        </tr>
+    </thead>
+    <tbody id="payment-table-body">
+        <tr>
+            <td colspan="4">Đang tải dữ liệu...</td>
+        </tr>
+    </tbody>
+</table>
+
+<div style="text-align:center; margin-top:20px;">
+    <a href="/web/pay" class="btn btn-success">➕ Thêm thanh toán mới</a>
+    <button id="logoutButton" class="btn btn-logout" style="margin-left: 10px;">Đăng xuất</button>
+</div>
+
+<script>
+    // Chạy khi trang được tải
+    document.addEventListener('DOMContentLoaded', async () => {
+        const token = localStorage.getItem('jwtToken');
+        const tableBody = document.getElementById('payment-table-body');
+        const messageDiv = document.getElementById('message');
+
+        // 1. KIỂM TRA TOKEN: Đây là "cổng bảo vệ" của Frontend
+        if (!token) {
+            // Nếu không có token, đá về trang đăng nhập
+            alert('Bạn chưa đăng nhập!');
+            window.location.href = '/web/login';
+            return;
+        }
+
+        // Kiểm tra xem có thông báo từ trang OTP chuyển qua không
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('success') === 'true') {
+            messageDiv.innerText = 'Thanh toán thành công!';
+        }
+
+        try {
+            // 2. GỌI API (ĐÍNH KÈM TOKEN)
+            const response = await fetch('/api/payment/list', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}` // <-- Gửi token!
+                }
+            });
+
+            if (!response.ok) {
+                // Nếu token hết hạn hoặc không hợp lệ
+                throw new Error('Token không hợp lệ hoặc đã hết hạn.');
+            }
+
+            const payments = await response.json();
+            
+            // Xóa dòng "Đang tải..."
+            tableBody.innerHTML = ''; 
+
+            // 3. VẼ LẠI BẢNG
+            if (payments.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="4">Chưa có thanh toán nào.</td></tr>';
+            } else {
+                payments.forEach(p => {
+                    // Định dạng ngày (cách đơn giản)
+                    const paymentDate = new Date(p.paymentDate).toLocaleString('vi-VN');
+                    
+                    const row = `
+                        <tr>
+                            <td>${p.id}</td>
+                            <td>${p.mssv}</td>
+                            <td>${p.amount}</td>
+                            <td>${paymentDate}</td>
+                        </tr>
+                    `;
+                    tableBody.innerHTML += row;
+                });
+            }
+
+        } catch (error) {
+            console.error('Lỗi:', error);
+            // Nếu có lỗi (thường là token hết hạn), đá về login
+            localStorage.removeItem('jwtToken'); // Xóa token hỏng
+            window.location.href = '/web/login';
+        }
+    });
+
+    // Xử lý nút Đăng xuất
+    document.getElementById('logoutButton').addEventListener('click', () => {
+        localStorage.removeItem('jwtToken'); // Xóa token
+        alert('Đăng xuất thành công!');
+        window.location.href = '/web/login';
+    });
+</script>
+</body>
+</html>
