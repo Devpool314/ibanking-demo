@@ -18,11 +18,10 @@ public class TuitionInfoController {
         this.tuitionInfoRepository = tuitionInfoRepository;
     }
 
-    // API MỚI: Dùng để check hóa đơn
     @GetMapping("/{mssv}")
     public ResponseEntity<TuitionInfo> getTuitionInfoByMssv(@PathVariable String mssv) {
         return tuitionInfoRepository.findByMssv(mssv)
-                .map(tuitionInfo -> ResponseEntity.ok(tuitionInfo)) // Nếu tìm thấy
-                .orElse(ResponseEntity.notFound().build()); // Nếu không
+                .map(tuitionInfo -> ResponseEntity.ok(tuitionInfo))
+                .orElse(ResponseEntity.notFound().build()); 
     }
 }

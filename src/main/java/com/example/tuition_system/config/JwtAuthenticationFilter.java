@@ -5,7 +5,6 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-//import lombok.RequiredArgsConstructor; // Thêm @RequiredArgsConstructor nếu dùng Lombok
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -18,13 +17,11 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 
 @Component
-// @RequiredArgsConstructor // Bỏ comment này nếu bạn dùng Lombok
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
 
-    // Thêm constructor nếu không dùng Lombok
     public JwtAuthenticationFilter(JwtService jwtService, UserDetailsService userDetailsService) {
         this.jwtService = jwtService;
         this.userDetailsService = userDetailsService;
@@ -46,16 +43,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        jwt = authHeader.substring(7); // Bỏ "Bearer "
+        jwt = authHeader.substring(7); 
         username = jwtService.extractUsername(jwt);
 
-        // Nếu có username VÀ người dùng chưa được xác thực trong context
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
 
             // Nếu token hợp lệ
             if (jwtService.isTokenValid(jwt, userDetails)) {
-                // Tạo 1 token xác thực và đưa vào Security Context
                 UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                         userDetails,
                         null,

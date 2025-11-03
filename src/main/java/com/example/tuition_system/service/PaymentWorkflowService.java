@@ -28,20 +28,36 @@ public class PaymentWorkflowService {
     }
 
     public void processConfirmed(Long transactionId, String confirmedBy) {
-        PaymentRequest pr = paymentRequestRepository.findById(transactionId)
+        // Lock và kiểm tra trạng thái PaymentRequest
+        PaymentRequest pr = paymentRequestRepository.lockById(transactionId)
                 .orElseThrow(() -> new IllegalArgumentException("PaymentRequest not found"));
+                
+        if (pr.getStatus() != PaymentRequest.Status.PENDING) {
+            throw new IllegalStateException("Payment request is not in PENDING state");
+        }
 
-        // Trừ tiền người nộp
-        User payer = userRepository.findByUsername(pr.getPayerUsername())
+        // Lock và kiểm tra MSSV có đang được thanh toán bởi request khác không
+        TuitionInfo tuition = tuitionInfoRepository.lockByMssv(pr.getMssv()).orElse(null);
+        if (tuition != null && tuition.isPaid()) {
+            pr.setStatus(PaymentRequest.Status.EXPIRED);
+            paymentRequestRepository.save(pr);
+            throw new IllegalStateException("Tuition fee was already paid by another transaction");
+        }
+
+        // Lock và kiểm tra số dư người nộp
+        User payer = userRepository.lockByUsername(pr.getPayerUsername())
                 .orElseThrow(() -> new IllegalStateException("User not found"));
         if (payer.getBalance() < pr.getAmount()) {
+            pr.setStatus(PaymentRequest.Status.EXPIRED);
+            paymentRequestRepository.save(pr);
             throw new IllegalStateException("Insufficient balance at confirm step");
         }
+
+        // Trừ tiền và cập nhật trạng thái
         double newBalance = payer.getBalance() - pr.getAmount();
         payer.setBalance(newBalance);
         userRepository.save(payer);
 
-        TuitionInfo tuition = tuitionInfoRepository.findByMssv(pr.getMssv()).orElse(null);
         if (tuition != null) {
             tuition.setPaid(true);
             tuitionInfoRepository.save(tuition);
@@ -56,6 +72,10 @@ public class PaymentWorkflowService {
         payment.setStatus("SUCCESS");
         payment.setPaymentDate(java.time.LocalDateTime.now());
         paymentRepository.save(payment);
+
+        // Cập nhật trạng thái request thành công
+        pr.setStatus(PaymentRequest.Status.CONFIRMED);
+        paymentRequestRepository.save(pr);
 
         String studentName = (tuition != null) ? tuition.getFullname() : null;
         mailService.sendPaymentSuccess(

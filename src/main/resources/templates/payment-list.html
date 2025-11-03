@@ -43,51 +43,42 @@
 </div>
 
 <script>
-    // Chạy khi trang được tải
     document.addEventListener('DOMContentLoaded', async () => {
         const token = localStorage.getItem('jwtToken');
         const tableBody = document.getElementById('payment-table-body');
         const messageDiv = document.getElementById('message');
 
-        // 1. KIỂM TRA TOKEN: Đây là "cổng bảo vệ" của Frontend
         if (!token) {
-            // Nếu không có token, đá về trang đăng nhập
             alert('Bạn chưa đăng nhập!');
             window.location.href = '/web/login';
             return;
         }
 
-        // Kiểm tra xem có thông báo từ trang OTP chuyển qua không
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('success') === 'true') {
             messageDiv.innerText = 'Thanh toán thành công!';
         }
 
         try {
-            // 2. GỌI API (ĐÍNH KÈM TOKEN)
             const response = await fetch('/api/payment/list', {
                 method: 'GET',
                 headers: {
-                    'Authorization': `Bearer ${token}` // <-- Gửi token!
+                    'Authorization': `Bearer ${token}` 
                 }
             });
 
             if (!response.ok) {
-                // Nếu token hết hạn hoặc không hợp lệ
                 throw new Error('Token không hợp lệ hoặc đã hết hạn.');
             }
 
             const payments = await response.json();
             
-            // Xóa dòng "Đang tải..."
             tableBody.innerHTML = ''; 
 
-            // 3. VẼ LẠI BẢNG
             if (payments.length === 0) {
                 tableBody.innerHTML = '<tr><td colspan="4">Chưa có thanh toán nào.</td></tr>';
             } else {
                 payments.forEach(p => {
-                    // Định dạng ngày (cách đơn giản)
                     const paymentDate = new Date(p.paymentDate).toLocaleString('vi-VN');
                     
                     const row = `
@@ -104,15 +95,14 @@
 
         } catch (error) {
             console.error('Lỗi:', error);
-            // Nếu có lỗi (thường là token hết hạn), đá về login
-            localStorage.removeItem('jwtToken'); // Xóa token hỏng
+            localStorage.removeItem('jwtToken'); 
             window.location.href = '/web/login';
         }
     });
 
     // Xử lý nút Đăng xuất
     document.getElementById('logoutButton').addEventListener('click', () => {
-        localStorage.removeItem('jwtToken'); // Xóa token
+        localStorage.removeItem('jwtToken');
         alert('Đăng xuất thành công!');
         window.location.href = '/web/login';
     });

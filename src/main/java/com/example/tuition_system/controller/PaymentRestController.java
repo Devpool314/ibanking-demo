@@ -8,7 +8,6 @@ import com.example.tuition_system.repository.*;
 import com.example.tuition_system.service.*;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
 import java.security.Principal;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -41,7 +40,6 @@ public class PaymentRestController {
         this.paymentWorkflowService = paymentWorkflowService;
     }
 
-    // Existing payments API
     @GetMapping
     public List<Payment> getPayments() {
         return service.listAll();
@@ -109,7 +107,6 @@ public class PaymentRestController {
         return result;
     }
 
-    // Compatibility endpoints used by frontend (from the old PaymentController)
     @GetMapping("/list")
     public List<Payment> listPayments() {
         return paymentRepository.findAll();

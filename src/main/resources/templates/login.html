@@ -35,16 +35,13 @@
 </div>
 
 <script>
-    // Thêm JavaScript vào cuối file
     document.getElementById('loginButton').addEventListener('click', async () => {
         const username = document.getElementById('username').value;
         const password = document.getElementById('password').value;
         const messageDiv = document.getElementById('message');
-        
         messageDiv.innerText = 'Đang đăng nhập...';
 
         try {
-            // 1. Gọi API /api/auth/login (giống hệt Postman)
             const response = await fetch('/api/auth/login', {
                 method: 'POST',
                 headers: {
@@ -57,19 +54,12 @@
             });
 
             if (response.ok) {
-                // 2. Nếu thành công (200 OK)
-                const data = await response.json();
-                
-                // 3. LƯU TOKEN VÀO BỘ NHỚ TRÌNH DUYỆT
+                const data = await response.json();  
                 localStorage.setItem('jwtToken', data.token);
-                
                 messageDiv.innerText = 'Đăng nhập thành công! Đang chuyển hướng...';
-                
-                // 4. Chuyển hướng đến trang danh sách
                 window.location.href = '/web/payments'; 
                 
             } else {
-                // 5. Nếu thất bại (401 Unauthorized)
                 const errorData = await response.json();
                 messageDiv.innerText = errorData.message || 'Tên đăng nhập hoặc mật khẩu không chính xác.';
             }
@@ -79,6 +69,5 @@
         }
     });
 </script>
-
 </body>
 </html>

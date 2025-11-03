@@ -16,8 +16,6 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
     public void commence(HttpServletRequest request,
                          HttpServletResponse response,
                          AuthenticationException authException) throws IOException, ServletException {
-        // Khi người dùng chưa xác thực truy cập tài nguyên được bảo vệ,
-        // chúng ta gửi lỗi 401 Unauthorized (thay vì 403 Forbidden mặc định)
         response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized: " + authException.getMessage());
     }
 }

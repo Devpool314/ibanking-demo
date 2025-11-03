@@ -6,7 +6,6 @@ import com.example.tuition_system.service.JwtService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-//import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -49,8 +48,6 @@ public class AuthController {
             return ResponseEntity.ok(new AuthResponse(token));
 
         } catch (AuthenticationException e) {
-            // 3. NẾU XÁC THỰC THẤT BẠI (sai pass/user)
-            // Trả về lỗi 401 với thông báo rõ ràng
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(new ApiResponse("Tên đăng nhập hoặc mật khẩu không chính xác"));
         }
